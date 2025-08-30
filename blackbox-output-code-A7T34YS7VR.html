@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoodSync AI - Smart Recommendation System</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder@1.3.3"></script>
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --accent: #ff6f91;
+            --dark: #2d3748;
+            --light: #f7fafc;
+            --success: #48bb78;
+            --warning: #ed8936;
+            --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--gradient);
+            color: var(--light);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #fff, #e2e8f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        .input-section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .output-section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        textarea, select {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            color: var(--dark);
+            font-size: 1rem;
+            resize: none;
+        }
+
+        textarea:focus, select:focus {
+            outline: 2px solid var(--accent);
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background: #ff4a6e;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 111, 145, 0.3);
+        }
+
+        .results {
+            margin-top: 2rem;
+        }
+
+        .recommendation {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+            border-left: 4px solid var(--accent);
+        }
+
+        .recommendation:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateX(5px);
+        }
+
+        .rec-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .rec-category {
+            display: inline-block;
+            background: var(--primary);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .rec-description {
+            opacity: 0.9;
+            margin-bottom: 1rem;
+        }
+
+        .rec-rating {
+            color: #f6e05e;
+            font-weight: 600;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .feature-highlight {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 3rem;
+            border-radius: 20px;
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 4rem;
+            opacity: 0.7;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero">
+            <h1>MoodSync AI</h1>
+            <p>Discover perfect recommendations based on your current mood and preferences. Powered by machine learning and sentiment analysis.</p>
+        </div>
+
+        <div class="feature-highlight">
+            <h2>Why MoodSync is Different</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🧠</div>
+                    <h3>AI-Powered</h3>
+                    <p>Real-time sentiment analysis using TensorFlow.js</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Multi-Category</h3>
+                    <p>Movies, Apps, Music, TV Shows & Series</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Real-time</h3>
+                    <p>Instant recommendations with zero server calls</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="input-section">
+                <h2>How are you feeling today?</h2>
+                <div class="form-group">
+                    <label for="moodInput">Describe your mood or current situation:</label>
+                    <textarea id="moodInput" rows="4" placeholder="I'm feeling excited about the weekend and want something fun to watch..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="categorySelect">What would you like to discover?</label>
+                    <select id="categorySelect">
+                        <option value="all">Everything</option>
+                        <option value="movies">Movies</option>
+                        <option value="tvshows">TV Shows & Series</option>
+                        <option value="music">Music</option>
+                        <option value="apps">Apps</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="getRecommendations()">Find Perfect Matches</button>
+                
+                <div class="stats" id="stats">
+                    <span>Powered by TensorFlow.js</span>
+                    <span id="matchScore">0% match</span>
+                </div>
+            </div>
+
+            <div class="output-section">
+                <h2>Your Personalized Recommendations</h2>
+                <div id="results" class="results">
+                    <div class="loading" id="loading" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>Analyzing your mood and finding perfect matches...</p>
+                    </div>
+                    <div id="recommendations"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Built with ❤️ using AI & Machine Learning | MoodSync Recommendation System</p>
+        </footer>
+    </div>
+
+    <script>
+        // Sample database of items across all categories
+        const itemsDatabase = {
+            movies: [
+                {id: 1, title: "The Shawshank Redemption", description: "Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency.", rating: 9.3, mood: "hopeful inspirational emotional"},
+                {id: 2, title: "The Dark Knight", description: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests.", rating: 9.0, mood: "intense thrilling dark"},
+                {id: 3, title: "Pulp Fiction", description: "The lives of two mob hitmen, a boxer, a gangster and his wife, and a pair of diner bandits intertwine in four tales of violence and redemption.", rating: 8.9, mood: "stylish violent quirky"},
+                {id: 4, title: "La La Land", description: "While navigating their careers in Los Angeles, a pianist and an actress fall in love while attempting to reconcile their aspirations for the future.", rating: 8.0, mood: "romantic musical nostalgic"},
+                {id: 5, title: "Spirited Away", description: "During her family's move to the suburbs, a sullen 10-year-old girl wanders into a world ruled by gods, witches, and spirits.", rating: 8.6, mood: "magical mysterious beautiful"}
+            ],
+            tvshows: [
+                {id: 1, title: "Breaking Bad", description: "A high school chemistry teacher diagnosed with cancer turns to a life of crime to secure his family's future.", rating: 9.5, mood: "intense dramatic gripping"},
+                {id: 2, title: "Stranger Things", description: "When a young boy disappears, his mother and friends must confront terrifying supernatural forces to get him back.", rating: 8.7, mood: "nostalgic mysterious thrilling"},
+                {id: 3, title: "The Office", description: "A mockumentary on a group of typical office workers, where the workday consists of ego clashes and inappropriate behavior.", rating: 8.9, mood: "funny awkward relatable"},
+                {id: 4, title: "Game of Thrones", description: "Nine noble families fight for control over the lands of Westeros, while an ancient enemy returns after being dormant for millennia.", rating: 9.2, mood: "epic dramatic intense"},
+                {id: 5, title: "Black Mirror", description: "An anthology series exploring a twisted, high-tech world where humanity's greatest innovations collide with their darkest instincts.", rating: 8.8, mood: "thought-provoking dystopian technological"}
+            ],
+            music: [
+                {id: 1, title: "Bohemian Rhapsody - Queen", description: "A progressive rock song that became one of the most popular and innovative works in the history of popular music.", rating: 9.8, mood: "epic dramatic operatic"},
+                {id: 2, title: "Blinding Lights - The Weeknd", description: "An upbeat synth-pop track with 1980s influences that became a global phenomenon.", rating: 8.9, mood: "energetic retro dance"},
+                {id: 3, title: "Shape of You - Ed Sheeran", description: "A pop song with electronic elements that blends dancehall and tropical house influences.", rating: 8.5, mood: "catchy romantic upbeat"},
+                {id: 4, title: "Smells Like Teen Spirit - Nirvana", description: "The song that defined the grunge movement and became an anthem for the disillusioned youth of the 1990s.", rating: 9.2, mood: "angsty rebellious raw"},
+                {id: 5, title: "Rolling in the Deep - Adele", description: "A soulful pop ballad about the anger and disappointment of a broken relationship.", rating: 9.0, mood: "emotional powerful soulful"}
+            ],
+            apps: [
+                {id: 1, title: "Notion", description: "An all-in-one workspace for notes, tasks, wikis, and databases that helps you organize everything.", rating: 4.8, mood: "productive organized efficient"},
+                {id: 2, title: "Headspace", description: "A meditation and mindfulness app that helps reduce stress and improve focus through guided meditation.", rating: 4.7, mood: "calming peaceful mindful"},
+                {id: 3, title: "Duolingo", description: "A language-learning platform that uses gamification to make learning new languages fun and engaging.", rating: 4.6, mood: "educational fun rewarding"},
+                {id: 4, title: "Spotify", description: "A digital music service that gives you access to millions of songs and podcasts from artists all over the world.", rating: 4.8, mood: "entertaining diverse personalized"},
+                {id: 5, title: "Calm", description: "A meditation and sleep app that helps you manage anxiety, lower stress, and sleep better.", rating: 4.7, mood: "relaxing soothing peaceful"}
+            ]
+        };
+
+        let sentenceEncoder = null;
+
+        // Initialize the Universal Sentence Encoder
+        async function loadModel() {
+            try {
+                sentenceEncoder = await use.load();
+                console.log("Model loaded successfully");
+            } catch (error) {
+                console.error("Error loading model:", error);
+            }
+        }
+
+        // Load model when page loads
+        window.addEventListener('load', loadModel);
+
+        // Calculate cosine similarity between two vectors
+        function cosineSimilarity(vecA, vecB) {
+            const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
+            const normA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+            const normB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+            return dotProduct / (normA * normB);
+        }
+
+        // Get recommendations based on user input
+        async function getRecommendations() {
+            const moodInput = document.getElementById('moodInput').value.trim();
+            const category = document.getElementById('categorySelect').value;
+            const recommendationsDiv = document.getElementById('recommendations');
+            const loadingDiv = document.getElementById('loading');
+            const matchScore = document.getElementById('matchScore');
+
+            if (!moodInput) {
+                recommendationsDiv.innerHTML = '<div class="recommendation"><p>Please describe your mood to get personalized recommendations!</p></div>';
+                return;
+            }
+
+            // Show loading
+            loadingDiv.style.display = 'block';
+            recommendationsDiv.innerHTML = '';
+
+            try {
+                // Get embedding for user input
+                const userEmbedding = await sentenceEncoder.embed([moodInput]);
+                const userVector = await userEmbedding.array();
+
+                // Get all items based on selected category
+                let allItems = [];
+                if (category === 'all') {
+                    Object.values(itemsDatabase).forEach(categoryItems => {
+                        allItems = allItems.concat(categoryItems);
+                    });
+                } else {
+                    allItems = itemsDatabase[category] || [];
+                }
+
+                // Calculate similarity for each item
+                const recommendations = [];
+                for (const item of allItems) {
+                    const itemEmbedding = await sentenceEncoder.embed([item.description + ' ' + item.mood]);
+                    const itemVector = await itemEmbedding.array();
+                    
+                    const similarity = cosineSimilarity(userVector[0], itemVector[0]);
+                    recommendations.push({
+                        ...item,
+                        similarity: similarity,
+                        category: Object.keys(itemsDatabase).find(key => itemsDatabase[key].includes(item))
+                    });
+                }
+
+                // Sort by similarity (highest first)
+                recommendations.sort((a, b) => b.similarity - a.similarity);
+
+                // Display top 5 recommendations
+                loadingDiv.style.display = 'none';
+                
+                if (recommendations.length === 0) {
+                    recommendationsDiv.innerHTML = '<div class="recommendation"><p>No recommendations found. Try a different mood description!</p></div>';
+                    return;
+                }
+
+                const topRecommendations = recommendations.slice(0, 5);
+                let html = '';
+
+                topRecommendations.forEach((rec, index) => {
+                    const matchPercentage = Math.round(rec.similarity * 100);
+                    html += `
+                        <div class="recommendation">
+                            <span class="rec-category">${rec.category.toUpperCase()}</span>
+                            <div class="rec-title">${rec.title}</div>
+                            <div class="rec-description">${rec.description}</div>
+                            <div class="rec-rating">⭐ ${rec.rating}/10 • ${matchPercentage}% match</div>
+                        </div>
+                    `;
+                });
+
+                recommendationsDiv.innerHTML = html;
+                matchScore.textContent = `${Math.round(topRecommendations[0].similarity * 100)}% match`;
+
+            } catch (error) {
+                loadingDiv.style.display = 'none';
+                console.error("Error getting recommendations:", error);
+                recommendationsDiv.innerHTML = '<div class="recommendation"><p>Error getting recommendations. Please try again.</p></div>';
+            }
+        }
+
+        // Allow Enter key to trigger recommendations
+        document.getElementById('moodInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                getRecommendations();
+            }
+        });
+    </script>
+</body>
+</html>
